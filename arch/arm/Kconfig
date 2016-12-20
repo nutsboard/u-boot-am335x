@@ -381,6 +381,14 @@ config TARGET_AM335X_SL50
 	select DM
 	select DM_SERIAL
 
+config TARGET_NUTSBOARD_ALMOND
+	bool "Support nutsboard_almond"
+	select CPU_V7
+	select SUPPORT_SPL
+	select DM
+	select DM_SERIAL
+	select DM_GPIO
+
 config TARGET_BAV335X
 	bool "Support bav335x"
 	select CPU_V7
@@ -871,6 +879,7 @@ source "board/sunxi/Kconfig"
 source "board/syteco/zmx25/Kconfig"
 source "board/tcl/sl50/Kconfig"
 source "board/ti/am335x/Kconfig"
+source "board/nutsboard/almond/Kconfig"
 source "board/ti/am43xx/Kconfig"
 source "board/birdland/bav335x/Kconfig"
 source "board/ti/ti814x/Kconfig"

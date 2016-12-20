@@ -1,0 +1,24 @@
+if TARGET_NUTSBOARD_ALMOND
+
+config SYS_BOARD
+	default "almond"
+
+config SYS_VENDOR
+	default "nutsboard"
+
+config SYS_SOC
+	default "am33xx"
+
+config SYS_CONFIG_NAME
+	default "almond"
+
+config CONS_INDEX
+	int "UART used for console"
+	range 1 6
+	default 4
+	help
+	  The AM335x SoC has a total of 6 UARTs (UART0 to UART5 as referenced
+	  in documentation, etc) available to it.  Depending on your specific
+	  board you may want something other than UART4.
+
+endif
