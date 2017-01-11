@@ -73,56 +73,6 @@ static int board_set_console(void)
 	return 0;
 }
 
-static int read_eeprom(BSP_VS_HWPARAM *header)
-{
-	i2c_set_bus_num(1);
-
-	/* Check if baseboard eeprom is available */
-	if (i2c_probe(CONFIG_SYS_I2C_EEPROM_ADDR)) {
-		puts("Could not probe the EEPROM; something fundamentally "
-			"wrong on the I2C bus.\n");
-		return -ENODEV;
-	}
-
-	/* read the eeprom using i2c */
-	if (i2c_read(CONFIG_SYS_I2C_EEPROM_ADDR, 0, 1, (uchar *)header,
-		     sizeof(BSP_VS_HWPARAM))) {
-		puts("Could not read the EEPROM; something fundamentally"
-			" wrong on the I2C bus.\n");
-		return -EIO;
-	}
-
-	if (header->Magic != 0xDEADBEEF) {
-
-		printf("Incorrect magic number (0x%x) in EEPROM\n",
-				header->Magic);
-
-		/* fill default values */
-		header->SystemId = 211;
-		header->MAC1[0] = 0x00;
-		header->MAC1[1] = 0x00;
-		header->MAC1[2] = 0x00;
-		header->MAC1[3] = 0x00;
-		header->MAC1[4] = 0x00;
-		header->MAC1[5] = 0x01;
-
-		header->MAC2[0] = 0x00;
-		header->MAC2[1] = 0x00;
-		header->MAC2[2] = 0x00;
-		header->MAC2[3] = 0x00;
-		header->MAC2[4] = 0x00;
-		header->MAC2[5] = 0x02;
-
-		header->MAC3[0] = 0x00;
-		header->MAC3[1] = 0x00;
-		header->MAC3[2] = 0x00;
-		header->MAC3[3] = 0x00;
-		header->MAC3[4] = 0x00;
-		header->MAC3[5] = 0x03;
-	}
-
-	return 0;
-}
 
 #if defined(CONFIG_SPL_BUILD) || defined(CONFIG_NOR_BOOT)
 
@@ -273,22 +223,20 @@ int board_init(void)
 
 int ft_board_setup(void *blob, bd_t *bd)
 {
-	int node, ret;
-	unsigned char mac_addr[6];
-	BSP_VS_HWPARAM header;
 
-	/* get production data */
-	if (read_eeprom(&header))
-		return 0;
+	int node, ret;
+	uint8_t mac_addr[6];
+	uint32_t mac_hi, mac_lo;
 
 	/* setup MAC1 */
-	mac_addr[0] = header.MAC1[0];
-	mac_addr[1] = header.MAC1[1];
-	mac_addr[2] = header.MAC1[2];
-	mac_addr[3] = header.MAC1[3];
-	mac_addr[4] = header.MAC1[4];
-	mac_addr[5] = header.MAC1[5];
-
+	mac_lo = readl(&cdev->macid0l);
+	mac_hi = readl(&cdev->macid0h);
+	mac_addr[0] = mac_hi & 0xFF;
+	mac_addr[1] = (mac_hi & 0xFF00) >> 8;
+	mac_addr[2] = (mac_hi & 0xFF0000) >> 16;
+	mac_addr[3] = (mac_hi & 0xFF000000) >> 24;
+	mac_addr[4] = mac_lo & 0xFF;
+	mac_addr[5] = (mac_lo & 0xFF00) >> 8;
 
 	node = fdt_path_offset(blob, "/ocp/ethernet/slave@4a100200");
 	if (node < 0) {
@@ -302,13 +250,14 @@ int ft_board_setup(void *blob, bd_t *bd)
 		return -ENODEV;
 	}
 
-	/* setup MAC2 */
-	mac_addr[0] = header.MAC2[0];
-	mac_addr[1] = header.MAC2[1];
-	mac_addr[2] = header.MAC2[2];
-	mac_addr[3] = header.MAC2[3];
-	mac_addr[4] = header.MAC2[4];
-	mac_addr[5] = header.MAC2[5];
+	mac_lo = readl(&cdev->macid1l);
+	mac_hi = readl(&cdev->macid1h);
+	mac_addr[0] = mac_hi & 0xFF;
+	mac_addr[1] = (mac_hi & 0xFF00) >> 8;
+	mac_addr[2] = (mac_hi & 0xFF0000) >> 16;
+	mac_addr[3] = (mac_hi & 0xFF000000) >> 24;
+	mac_addr[4] = mac_lo & 0xFF;
+	mac_addr[5] = (mac_lo & 0xFF00) >> 8;
 
 	node = fdt_path_offset(blob, "/ocp/ethernet/slave@4a100300");
 	if (node < 0) {
@@ -342,18 +291,18 @@ int board_late_init(void)
 	BSP_VS_HWPARAM header;
 	char model[4];
 
-	/* get production data */
-	if (read_eeprom(&header)) {
-		strcpy(model, "211");
-	} else {
-		sprintf(model, "%d", header.SystemId);
-		if (header.SystemId == 215) {
-			configure_module_pin_mux(dip_pin_mux);
-			board_set_console();
-		}
+	sprintf(model, "%d", header.SystemId);
+	if (header.SystemId == 215) {
+		configure_module_pin_mux(dip_pin_mux);
+		board_set_console();
 	}
 	setenv("board_name", model);
 #endif
+
+
+
+
+
 
 	return 0;
 }
@@ -422,6 +371,19 @@ int board_eth_init(bd_t *bis)
 	 */
 
 	/* try reading mac address from efuse */
+	mac_lo = readl(&cdev->macid0l);
+	mac_hi = readl(&cdev->macid0h);
+	mac_addr[0] = mac_hi & 0xFF;
+	mac_addr[1] = (mac_hi & 0xFF00) >> 8;
+	mac_addr[2] = (mac_hi & 0xFF0000) >> 16;
+	mac_addr[3] = (mac_hi & 0xFF000000) >> 24;
+	mac_addr[4] = mac_lo & 0xFF;
+	mac_addr[5] = (mac_lo & 0xFF00) >> 8;
+
+	if (is_valid_ethaddr(mac_addr))
+		eth_setenv_enetaddr("ethaddr", mac_addr);
+
+
 	mac_lo = readl(&cdev->macid1l);
 	mac_hi = readl(&cdev->macid1h);
 	mac_addr[0] = mac_hi & 0xFF;
@@ -437,7 +399,7 @@ int board_eth_init(bd_t *bis)
 		printf("<ethaddr> not set. Validating first E-fuse MAC\n");
 
 		if (is_valid_ethaddr(mac_addr))
-			eth_setenv_enetaddr("ethaddr", mac_addr);
+			eth_setenv_enetaddr("eth1addr", mac_addr);
 	}
 
 #ifdef CONFIG_DRIVER_TI_CPSW
