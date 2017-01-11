@@ -227,7 +227,7 @@ const struct dpll_params *get_dpll_ddr_params(void)
 
 void set_uart_mux_conf(void)
 {
-	enable_uart0_pin_mux();
+	enable_uart3_pin_mux();
 }
 
 void set_mux_conf_regs(void)
