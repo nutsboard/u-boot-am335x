@@ -59,33 +59,30 @@
 #define CONFIG_SYS_OMAP24_I2C_SPEED 1000
 
 #undef CONFIG_SPL_OS_BOOT
+#define CONFIG_SYS_NAND_U_BOOT_OFFS    0x000c0000
 #ifdef CONFIG_NAND
-#define CONFIG_SYS_NAND_U_BOOT_OFFS	0x00080000
-#ifdef CONFIG_SPL_OS_BOOT
+#define CONFIG_SPL_NAND_SUPPORT
 #define CONFIG_CMD_SPL_NAND_OFS 0x00080000 /* os parameters */
 #define CONFIG_SYS_NAND_SPL_KERNEL_OFFS 0x00200000 /* kernel offset */
 #define CONFIG_CMD_SPL_WRITE_SIZE	0x2000
-#endif
+#define CONFIG_ENV_OFFSET		0x001c0000
+#define CONFIG_ENV_OFFSET_REDUND	0x001e0000
+#define CONFIG_SYS_ENV_SECT_SIZE	CONFIG_SYS_NAND_BLOCK_SIZE
+
 #define NANDARGS \
 	"mtdids=" MTDIDS_DEFAULT "\0" \
 	"mtdparts=" MTDPARTS_DEFAULT "\0" \
 	"nandargs=setenv bootargs console=${console} " \
 		"${optargs} " \
-		"${mtdparts} " \
 		"root=${nandroot} " \
 		"rootfstype=${nandrootfstype}\0" \
-	"nandroot=ubi0:rootfs rw ubi.mtd=5\0" \
+	"nandroot=ubi0:rootfs rw ubi.mtd=NAND.file-system,2048\0" \
 	"nandrootfstype=ubifs rootwait=1\0" \
 	"nandboot=echo Booting from nand ...; " \
 		"run nandargs; " \
-		"setenv loadaddr 0x84000000; " \
-		"ubi part UBI; " \
-		"ubifsmount ubi0:kernel; " \
-		"ubifsload $loadaddr kernel-fit.itb;" \
-		"ubifsumount; " \
-		"bootm ${loadaddr}#conf${board_name}; " \
-		"if test $? -ne 0; then echo Using default FIT config; " \
-		"bootm ${loadaddr}; fi;\0"
+		"nand read ${fdtaddr} NAND.u-boot-spl-os; " \
+		"nand read ${loadaddr} NAND.kernel; " \
+		"bootz ${loadaddr} - ${fdtaddr}\0"
 #else
 #define NANDARGS ""
 #endif
@@ -238,15 +235,17 @@
 #define CONFIG_SPL_LDSCRIPT		"$(CPUDIR)/am33xx/u-boot-spl.lds"
 
 #ifdef CONFIG_NAND
-#define CONFIG_NAND_OMAP_GPMC
-#define CONFIG_NAND_OMAP_GPMC_PREFETCH
-#define CONFIG_NAND_OMAP_ELM
+/* NAND: device related configs */
 #define CONFIG_SYS_NAND_5_ADDR_CYCLE
 #define CONFIG_SYS_NAND_PAGE_COUNT	(CONFIG_SYS_NAND_BLOCK_SIZE / \
 					 CONFIG_SYS_NAND_PAGE_SIZE)
 #define CONFIG_SYS_NAND_PAGE_SIZE	2048
 #define CONFIG_SYS_NAND_OOBSIZE		64
 #define CONFIG_SYS_NAND_BLOCK_SIZE	(128*1024)
+/* NAND: driver related configs */
+#define CONFIG_NAND_OMAP_GPMC
+#define CONFIG_NAND_OMAP_GPMC_PREFETCH
+#define CONFIG_NAND_OMAP_ELM
 #define CONFIG_SYS_NAND_BAD_BLOCK_POS	NAND_LARGE_BADBLOCK_POS
 #define CONFIG_SYS_NAND_ECCPOS		{ 2, 3, 4, 5, 6, 7, 8, 9, \
 					 10, 11, 12, 13, 14, 15, 16, 17, \
@@ -260,7 +259,21 @@
 #define CONFIG_SYS_NAND_ECCBYTES	14
 #define CONFIG_SYS_NAND_ONFI_DETECTION
 #define CONFIG_NAND_OMAP_ECCSCHEME	OMAP_ECC_BCH8_CODE_HW
-#define CONFIG_SYS_NAND_U_BOOT_START	CONFIG_SYS_TEXT_BASE
+#define MTDIDS_DEFAULT			"nand0=nand.0"
+#define MTDPARTS_DEFAULT		"mtdparts=nand.0:" \
+					"128k(NAND.SPL)," \
+					"128k(NAND.SPL.backup1)," \
+					"128k(NAND.SPL.backup2)," \
+					"128k(NAND.SPL.backup3)," \
+					"256k(NAND.u-boot-spl-os)," \
+					"1m(NAND.u-boot)," \
+					"128k(NAND.u-boot-env)," \
+					"128k(NAND.u-boot-env.backup1)," \
+					"8m(NAND.kernel)," \
+					"-(NAND.file-system)"
+#ifdef CONFIG_SPL_NAND_SUPPORT
+#define CONFIG_SPL_NAND_AM33XX_BCH
+#endif
 #endif
 #endif
 
@@ -308,21 +321,5 @@
 #define CONFIG_PHY_SMSC
 #define CONFIG_MII
 #define CONFIG_PHY_ATHEROS
-
-/* NAND support */
-#ifdef CONFIG_NAND
-#define CONFIG_CMD_NAND
-#define GPMC_NAND_ECC_LP_x8_LAYOUT	1
-#if !defined(CONFIG_SPI_BOOT) && !defined(CONFIG_NOR_BOOT)
-#define MTDIDS_DEFAULT			"nand0=omap2-nand.0"
-#define MTDPARTS_DEFAULT		"mtdparts=omap2-nand.0:128k(SPL)," \
-					"128k(SPL.backup1)," \
-					"128k(SPL.backup2)," \
-					"128k(SPL.backup3)," \
-					"1920k(u-boot)," \
-					"-(UBI)"
-#define CONFIG_ENV_IS_NOWHERE
-#endif
-#endif
 
 #endif	/* ! __CONFIG_ALMOND_H */
